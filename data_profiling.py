@@ -58,18 +58,53 @@ for var_type, columns in var_types.items():
     print(f"{var_type.title()} Variables ({len(columns)}):")
     print(columns, "\n")
 
+print(df_fraud['counter_statue'].unique())
+
 # Numeric Variables
 numeric = var_types['numeric']
 n_rows, n_cols = dslabs.define_grid(len(numeric))
-fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 3))
+fig_num, axs_num = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 3))
 
 for i, var in enumerate(numeric):
-    ax = axs[i // n_cols, i % n_cols] if n_rows > 1 else axs[i]
+    ax = axs_num[i // n_cols, i % n_cols] if n_rows > 1 else axs_num[i]
     ax.hist(df_fraud[var].dropna(), bins=30, edgecolor='black')
-    ax.set_title(f"{var}")
+    ax.set_title(var, fontsize=9)
     ax.set_ylabel("Frequency")
+    ax.tick_params(axis='x', labelrotation=45, labelsize=6)
+    ax.tick_params(axis='y', labelsize=6)
 
-plt.tight_layout()
-plt.suptitle("Numeric Variable Distributions", fontsize=12, y=1.02)
+fig_num.tight_layout()
+fig_num.suptitle("Numeric Variable Distributions (Independent Axes)", fontsize=14, y=1.02)
+plt.show()
+
+
+# Categorical Variables
+categorical = var_types['symbolic'] + var_types['binary']
+n_rows, n_cols = dslabs.define_grid(len(categorical))
+fig_cat, axs_cat = plt.subplots(n_rows, n_cols, figsize=(n_cols * 5, n_rows * 3))
+
+for i, var in enumerate(categorical):
+    ax = axs_cat[i // n_cols, i % n_cols] if n_rows > 1 else axs_cat[i]
+    counts = df_fraud[var].astype(str).value_counts(dropna=False).sort_index()
+
+    dslabs.plot_bar_chart(
+        xvalues=counts.index.tolist(),
+        yvalues=counts.values.tolist(),
+        ax=ax,
+        title=var,
+        xlabel=var,
+        ylabel="Count",
+        percentage=False
+    )
+
+    ax.tick_params(axis='x', labelrotation=45, labelsize=6)
+    ax.tick_params(axis='y', labelsize=6)
+
+# Hide unused subplots (if any)
+for j in range(len(categorical), len(axs_cat.flatten())):
+    axs_cat.flatten()[j].set_visible(False)
+
+fig_cat.tight_layout()
+fig_cat.suptitle("Categorical Variable Distributions (Independent Axes)", fontsize=14, y=1.02)
 plt.show()
 

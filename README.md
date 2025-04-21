@@ -28,7 +28,13 @@ fraud_electricity_classification/
 
 ## Dataset
 
-The dataset originates from a Kaggle competition focused on identifying fraud in electricity and gas consumption. This project uses only the labeled training data, merging `client_train.csv` and `invoice_train.csv` into `merged_data.csv`.
+This dataset is sourced from a Kaggle project focused on detecting fraud in electricity and gas consumption.
+
+You can access the dataset here:  
+[Fraud Detection in Electricity and Gas Consumption — Kaggle](https://www.kaggle.com/datasets/mrmorj/fraud-detection-in-electricity-and-gas-consumption)
+
+
+This project uses only the labeled training data, merging `client_train.csv` and `invoice_train.csv` into `merged_data.csv`.
 
 ### Key Features
 
@@ -60,14 +66,7 @@ The dataset originates from a Kaggle competition focused on identifying fraud in
 Install the required packages with:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn
-```
-
-Ensure the following custom files are included:
-
-- `dslabs/dslabs_functions.py`
-- `dslabs/config.py`
-- `dslabs.mplstyle`
+pip install -r requirements.txt
 
 ---
 

@@ -5,19 +5,66 @@ import numpy as np
 from dslabs import config
 from dslabs import dslabs_functions as dslabs
 import matplotlib.pyplot as plt
+import seaborn as sns
+import calendar
 
 # Load data
 data_path = os.getcwd()
-df_fraud = pd.read_csv(os.path.join(data_path, 'merged_data.csv'), index_col='client_id')
+df_fraud = pd.read_csv(os.path.join(data_path, 'merged_data.csv'))  # Removed index_col for now
+
+# Dataset head
+print("First 5 rows:")
+print(df_fraud.head(), "\n")
+
+# ---------------------------------
+# Dimensionality
+
 print(f"Fraud data dimensionality: {df_fraud.shape}\n")
 
-# Column names and types
+# Convert invoice_date to datetime format and handle parsing issues
+df_fraud['invoice_date'] = pd.to_datetime(df_fraud['invoice_date'], errors='coerce', dayfirst=True)
+
+# Clean counter_statue: unify formats but preserve values
+df_fraud['counter_statue'] = df_fraud['counter_statue'].astype(str).str.strip()
+df_fraud['counter_statue'] = df_fraud['counter_statue'].replace({
+    '0.0': '0', '1.0': '1', '2.0': '2', '3.0': '3', '4.0': '4', '5.0': '5'
+})
+
+# Identify variable types
+variable_types: dict[str, list] = dslabs.get_variable_types(df_fraud)
+print(variable_types)
+counts: dict[str, int] = {}
+for tp in variable_types.keys():
+    counts[tp] = len(variable_types[tp])
+
+plt.figure(figsize=(4, 2))
+dslabs.plot_bar_chart(
+    list(counts.keys()), list(counts.values()), title="Nr of variables per type"
+)
+
+# Column types
 print("Column data types:")
 print(df_fraud.dtypes, "\n")
 
-# Dataset head (first 5 rows)
-print("First 5 rows:")
-print(df_fraud.head(), "\n")
+# Convert all object-type columns to category 
+symbolic: list[str] = variable_types["symbolic"]
+df_fraud[symbolic] = df_fraud[symbolic].apply(lambda x: x.astype("category"))
+
+# Convert target column to int
+df_fraud["target"] = df_fraud["target"].astype(int)  
+
+# Convert binary columns (except 'target') to category
+binary: list[str] = [col for col in variable_types["binary"] if col != "target"]
+df_fraud[binary] = df_fraud[binary].apply(lambda x: x.astype("category"))
+
+# Print variable types summary
+variable_types: dict[str, list] = dslabs.get_variable_types(df_fraud)
+print(df_fraud.dtypes, "\n")
+
+# ---------------------------------
+# Sparsity
+
+numeric = variable_types['numeric']
 
 # Check for missing values
 missing_counts = df_fraud.isnull().sum()
@@ -33,35 +80,28 @@ print(pd.DataFrame({
     "Missing %": missing_percent.round(2)
 }), "\n")
 
-# Visualize missing percentages
-if not missing_summary.empty:
-    fig, ax = plt.subplots(figsize=(10, 5))
-    dslabs.plot_bar_chart(
-        xvalues=missing_percent.index.tolist(),
-        yvalues=missing_percent.tolist(),
-        ax=ax,
-        title="Missing Values by Column (%)",
-        xlabel="Columns",
-        ylabel="Percentage",
-        percentage=True
-    )
-    plt.tight_layout()
-    plt.show()
-else:
-    print("No missing values found.")
+# Count of zeros in numeric columns
+zero_counts = (df_fraud[numeric] == 0).sum()
+zero_percent = (zero_counts / len(df_fraud)) * 100
 
-# Identify variables types -- numeric, categorical
-var_types = dslabs.get_variable_types(df_fraud)
+print("Zero Values (%):")
+print(pd.DataFrame({
+    "Zero Count": zero_counts,
+    "Zero %": zero_percent.round(2)
+}).sort_values(by="Zero %", ascending=False), "\n")
 
-print("Variable Types:\n")
-for var_type, columns in var_types.items():
-    print(f"{var_type.title()} Variables ({len(columns)}):")
-    print(columns, "\n")
+# Unique values
+unique_counts = df_fraud.nunique().sort_values()
+print("Unique values per column:")
+print(unique_counts)
 
-print(df_fraud['counter_statue'].unique())
+# ---------------------------------
+# Distributions
+
+variable_types = dslabs.get_variable_types(df_fraud)
 
 # Numeric Variables
-numeric = var_types['numeric']
+numeric = variable_types['numeric']
 n_rows, n_cols = dslabs.define_grid(len(numeric))
 fig_num, axs_num = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 3))
 
@@ -73,13 +113,24 @@ for i, var in enumerate(numeric):
     ax.tick_params(axis='x', labelrotation=45, labelsize=6)
     ax.tick_params(axis='y', labelsize=6)
 
+# Adjust layout
 fig_num.tight_layout()
-fig_num.suptitle("Numeric Variable Distributions (Independent Axes)", fontsize=14, y=1.02)
+fig_num.subplots_adjust(hspace=0.99, top=0.88, bottom=0.05)  # hspace ↑ spacing between plots, top ↓ space for title
+
+# Title
+fig_num.suptitle("Numeric Variable Distributions", fontsize=14, y=1)
+
 plt.show()
 
+print(variable_types)
 
 # Categorical Variables
-categorical = var_types['symbolic'] + var_types['binary']
+
+# Skip symbolic vars with too many unique values (like IDs)
+symbolic_filtered = [col for col in variable_types['symbolic'] if col != 'client_id' and col != 'invoice_id' and col != 'creation_date']
+
+# Combine binary and filtered symbolic
+categorical = variable_types['binary'] + symbolic_filtered
 n_rows, n_cols = dslabs.define_grid(len(categorical))
 fig_cat, axs_cat = plt.subplots(n_rows, n_cols, figsize=(n_cols * 5, n_rows * 3))
 
@@ -100,11 +151,37 @@ for i, var in enumerate(categorical):
     ax.tick_params(axis='x', labelrotation=45, labelsize=6)
     ax.tick_params(axis='y', labelsize=6)
 
-# Hide unused subplots (if any)
 for j in range(len(categorical), len(axs_cat.flatten())):
     axs_cat.flatten()[j].set_visible(False)
 
+
 fig_cat.tight_layout()
-fig_cat.suptitle("Categorical Variable Distributions (Independent Axes)", fontsize=14, y=1.02)
+fig_cat.suptitle("Categorical Variable Distributions (Independent Axes)", fontsize=14)
+fig_cat.subplots_adjust(top=0.8)
 plt.show()
 
+# ---------------------------------
+# Granularity
+
+from dslabs import dslabs_functions as dslabs
+
+# Temporal Granularity: derive and analyze invoice_date and creation_date ---
+date_vars = [col for col in variable_types["date"] if col in df_fraud.columns]
+
+# Derive new granularity columns: year, quarter, month, day
+df_fraud = dslabs.derive_date_variables(df_fraud, date_vars)
+
+# Plot granularity distributions
+for date_col in date_vars:
+    axs = dslabs.analyse_date_granularity(df_fraud, date_col, ["year", "quarter", "month", "day"])
+    plt.tight_layout()
+    plt.show()
+
+# --- Spatial Granularity: analyze hierarchy if any exists ---
+# If region and disrict and client_catg imply a spatial hierarchy, use:
+spatial_hierarchy = [var for var in ["region", "disrict", "client_catg"] if var in df_fraud.columns]
+
+if spatial_hierarchy:
+    axs = dslabs.analyse_property_granularity(df_fraud, "client_location", spatial_hierarchy)
+    plt.tight_layout()
+    plt.show()

@@ -185,3 +185,6 @@ if spatial_hierarchy:
     axs = dslabs.analyse_property_granularity(df_fraud, "client_location", spatial_hierarchy)
     plt.tight_layout()
     plt.show()
+
+
+df_fraud.to_csv(os.path.join(data_path, 'df_fraud.csv'), index=False)

@@ -84,6 +84,7 @@ print(pd.DataFrame({
     "Missing %": missing_percent.round(2)
 }), "\n")
 
+
 # Count of zeros in numeric columns
 zero_counts = (df_fraud[numeric] == 0).sum()
 zero_percent = (zero_counts / len(df_fraud)) * 100
@@ -199,3 +200,95 @@ if spatial_hierarchy:
     plt.tight_layout()
     plt.show()
 
+# target distribution
+target_counts = df_fraud['target'].value_counts().sort_index()
+plt.figure(figsize=(4, 3))
+dslabs.plot_bar_chart(
+    xvalues=target_counts.index.tolist(),
+    yvalues=target_counts.values.tolist(),
+    title="Target Distribution (Fraud vs Non-Fraud)",
+    xlabel="Target",
+    ylabel="Number of Clients",
+    percentage=False
+)
+#plt.savefig("images/client_target_distribution.png")
+plt.show()
+
+
+# plot top features
+top_features = ['n_invoices', 'activity_days', 'account_age_days',
+                'consommation_level_1_mean', 'months_number_mean']
+
+# --- Select top 24 numeric variables with highest cardinality ---
+top_features = df_fraud[numeric_vars].nunique().sort_values(ascending=False).head(12).index.tolist()
+
+n_rows, n_cols = dslabs.define_grid(len(top_features), vars_per_row=4)
+
+fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 3))
+axs = axs.flatten()
+
+for i, var in enumerate(top_features):
+    ax = axs[i]
+    df_fraud[[var]].boxplot(ax=ax)
+    ax.set_title(var)
+    ax.tick_params(axis='x', labelrotation=45, labelsize=7)
+    ax.tick_params(axis='y', labelsize=7)
+
+# Hide unused subplots if any
+for j in range(len(top_features), len(axs)):
+    axs[j].set_visible(False)
+
+# Final layout adjustments
+fig.tight_layout()
+fig.suptitle("Boxplot of Top 24 Numeric Features", fontsize=14, y=1.02)
+plt.show()
+
+num_rows, num_cols = df_fraud.shape
+
+plt.figure(figsize=(6, 4))
+plt.bar(["Invoices", "Variables"], [num_rows, num_cols])
+plt.title("Invoices vs Features")
+plt.ylabel("Number of Items")
+plt.xticks(rotation=45) 
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+for i, val in enumerate([num_rows, num_cols]):
+    plt.text(i, val + max(num_rows, num_cols) * 0.02, str(val), ha='center')
+plt.tight_layout()
+plt.show()
+
+missing_counts = df_fraud.isnull().sum()
+missing_counts = missing_counts[missing_counts > 0].sort_values(ascending=False)
+
+plt.figure(figsize=(10, 6))
+missing_counts.plot(kind='bar')
+plt.title("Missing values per feature")
+plt.ylabel("Number of missing values")
+plt.xlabel("Features")
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Select numeric variables
+numeric_vars = df_fraud.select_dtypes(include=[np.number])
+
+# Compute correlation matrix
+corr_matrix = numeric_vars.corr()
+
+# Plot heatmap without annotations
+plt.figure(figsize=(16, 12))
+sns.heatmap(
+    corr_matrix,
+    cmap="coolwarm",
+    linewidths=0.5,
+    cbar_kws={"shrink": 0.8}
+)
+
+plt.title("Correlation Heatmap of Numeric Features", fontsize=14)
+plt.xticks(rotation=90, fontsize=7)
+plt.yticks(rotation=0, fontsize=7)
+plt.tight_layout()
+plt.show()
